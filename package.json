@@ -1,0 +1,57 @@
+{
+  "name": "antigravity-shopify-bot",
+  "version": "1.0.0",
+  "description": "High-performance Shopify bot with Electron, React, and advanced anti-bot bypass.",
+  "main": "dist/main/index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build && electron-builder",
+    "start-electron": "electron .",
+    "test:tls": "ts-node utils/tls-client.ts",
+    "test:worker": "ts-node core/task/runner.ts"
+  },
+  "keywords": [
+    "shopify",
+    "bot",
+    "electron",
+    "react",
+    "tls-client"
+  ],
+  "author": "Antigravity",
+  "license": "MIT",
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.0.1",
+    "autoprefixer": "^10.4.27",
+    "electron": "^41.0.2",
+    "electron-builder": "^26.8.1",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^4.2.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.0"
+  },
+  "dependencies": {
+    "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-virtual": "^3.13.23",
+    "axios": "^1.13.6",
+    "better-sqlite3": "^12.8.0",
+    "chart.js": "^4.5.1",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "electron-store": "^11.0.2",
+    "electron-updater": "^6.8.3",
+    "lucide-react": "^0.577.0",
+    "lucide-react-native": "^0.577.0",
+    "node-tls-client": "^2.1.0",
+    "piscina": "^5.1.4",
+    "react": "^19.2.4",
+    "react-chartjs-2": "^5.3.1",
+    "react-dom": "^19.2.4",
+    "recharts": "^3.8.0",
+    "sodium-native": "^5.1.0",
+    "sona-react": "^0.1.1",
+    "tailwind-merge": "^3.5.0",
+    "winston": "^3.19.0",
+    "zustand": "^5.0.12"
+  }
+}

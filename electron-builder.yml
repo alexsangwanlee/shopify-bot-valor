@@ -1,0 +1,53 @@
+# @file electron-builder.yml
+# @description 빌드 및 배포 설정을 위한 electron-builder 구성 파일
+
+appId: com.valor.aio
+productName: ValorAIO
+copyright: Copyright © 2026 Valor Team
+
+directories:
+  output: dist
+  buildResources: build
+
+asar: true
+files:
+  - dist-electron/**
+  - dist/**
+  - core/**
+  - utils/**
+  - package.json
+  - resources/**
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: resources/icons/logo.ico
+  certificateFile: ${env.WIN_CSC_LINK} # Code signing cert
+  certificatePassword: ${env.WIN_CSC_KEY_PASSWORD}
+
+mac:
+  target:
+    - pkg
+    - dmg
+  category: public.app-category.developer-tools
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  gatekeeperAssess: false
+  hardenedRuntime: true # Required for Notarization
+  notarize: true # 2026 macOS Requirement
+
+nsis:
+  oneClick: true
+  perMachine: false
+  allowToChangeInstallationDirectory: false
+  createDesktopShortcut: true
+  shortcutName: Valor AIO
+
+publish:
+  provider: github
+  owner: user-name
+  repo: shopify-bot-valor
+  private: true # Private repo support
+  token: ${env.GH_TOKEN}

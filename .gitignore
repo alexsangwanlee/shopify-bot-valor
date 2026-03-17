@@ -1,0 +1,23 @@
+# Build and dependency
+node_modules/
+dist/
+dist-electron/
+dist/index.html
+
+# IDE / System
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+
+# Sensitive Data (User specific)
+profiles.json
+tasks.json
+config.json
+proxies.json
+
+# Environment
+.env
+.env.local
+.env.*.local
