@@ -1,33 +1,41 @@
-/**
- * @file src/renderer/src/App.tsx
- * @description 메인 앱 엔트리 (레이지 로딩 및 탭 전환)
- */
-
-import React, { useState, Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useState } from 'react';
 import { Layout } from './components/Layout';
 
-const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
-const Tasks = lazy(() => import('./pages/Tasks').then(m => ({ default: m.Tasks })));
-const Proxies = lazy(() => import('./pages/Proxies').then(m => ({ default: m.Proxies })));
-// Profiles, Monitor, Settings 는 현재 placeholder 로 생성 필요 또는 lazy 처리 유지
+const Dashboard = lazy(() => import('./pages/Dashboard').then((module) => ({ default: module.Dashboard })));
+const Tasks = lazy(() => import('./pages/Tasks').then((module) => ({ default: module.Tasks })));
+const Proxies = lazy(() => import('./pages/Proxies').then((module) => ({ default: module.Proxies })));
+const Profiles = lazy(() => import('./pages/Profiles').then((module) => ({ default: module.Profiles })));
+const Monitor = lazy(() => import('./pages/Monitor').then((module) => ({ default: module.Monitor })));
+const Settings = lazy(() => import('./pages/Settings').then((module) => ({ default: module.Settings })));
+
+type TabId = 'dashboard' | 'tasks' | 'proxies' | 'profiles' | 'monitor' | 'settings';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
-
-  const renderContent = () => {
-    return (
-      <Suspense fallback={<div className="flex items-center justify-center h-full text-valor-accent animate-pulse">LOADING...</div>}>
-        {activeTab === 'dashboard' && <Dashboard />}
-        {activeTab === 'tasks' && <Tasks />}
-        {activeTab === 'proxies' && <Proxies />}
-        {/* 추가 페이지 구현 시 여기에 연결 */}
-      </Suspense>
-    );
-  };
+  const [activeTab, setActiveTab] = useState<TabId>('dashboard');
 
   return (
     <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
-      {renderContent()}
+      <Suspense
+        fallback={
+          <div className="glass-card-intense flex h-full min-h-[360px] flex-col items-center justify-center gap-4 border-white/10 text-center animate-in fade-in duration-500">
+            <div className="section-kicker">Boot Sequence</div>
+            <div className="panel-title">Loading Control Surface</div>
+            <div className="h-1.5 w-40 overflow-hidden rounded-full bg-white/10">
+              <div className="h-full w-1/2 animate-pulse rounded-full bg-gradient-to-r from-valor-accent via-cyan-300 to-blue-400" />
+            </div>
+            <div className="text-[10px] font-black uppercase tracking-[0.28em] text-white/30">
+              syncing local engine modules
+            </div>
+          </div>
+        }
+      >
+        {activeTab === 'dashboard' && <Dashboard />}
+        {activeTab === 'tasks' && <Tasks />}
+        {activeTab === 'proxies' && <Proxies />}
+        {activeTab === 'profiles' && <Profiles />}
+        {activeTab === 'monitor' && <Monitor />}
+        {activeTab === 'settings' && <Settings />}
+      </Suspense>
     </Layout>
   );
 }

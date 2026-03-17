@@ -1,26 +1,21 @@
-/**
- * @file core/configManager.ts
- * @description Supreme 전용 데이터 저장 및 로드 관리 (Atomic Write + JSON Persistence)
- */
-
 import fs from 'fs/promises';
 import path from 'path';
 import { app } from 'electron';
+import { StoredAppConfig } from './app-data';
 import { SupremeTask } from './task/types';
 import { logger } from '../utils/logger';
 
-export interface AppConfig {
-  webhookUrl: string;
-  maxConcurrent: number;
-  autoSaveInterval: number;
-  notificationsEnabled: boolean;
-}
+export interface AppConfig extends StoredAppConfig {}
 
-const DEFAULT_CONFIG: AppConfig = {
+export const DEFAULT_APP_CONFIG: AppConfig = {
   webhookUrl: '',
   maxConcurrent: 50,
   autoSaveInterval: 30,
   notificationsEnabled: true,
+  processingRecheckIntervalSec: 5,
+  processingMaxChecks: 24,
+  monitorDefaultPollIntervalSec: 2,
+  proxySpeedTestUrl: 'https://www.supremenewyork.com/shop/all',
 };
 
 export class ConfigManager {
@@ -28,7 +23,6 @@ export class ConfigManager {
   private basePath: string;
 
   private constructor() {
-    // Electron userData 폴더 활용
     this.basePath = app.getPath('userData');
   }
 
@@ -36,6 +30,7 @@ export class ConfigManager {
     if (!ConfigManager.instance) {
       ConfigManager.instance = new ConfigManager();
     }
+
     return ConfigManager.instance;
   }
 
@@ -43,49 +38,65 @@ export class ConfigManager {
     return path.join(this.basePath, filename);
   }
 
-  /**
-   * JSON 파일 로드
-   */
   public async loadPayload<T>(filename: string, defaultValue: T): Promise<T> {
     const filePath = this.getPath(filename);
+
     try {
       const data = await fs.readFile(filePath, 'utf-8');
       return JSON.parse(data) as T;
-    } catch (error) {
+    } catch (error: any) {
+      if (error.code === 'ENOENT') {
+        logger.info(`ConfigManager: ${filename} not found, using default value`);
+        return defaultValue;
+      }
+      
+      // If file exists but is corrupted, log error and backup if possible
+      logger.error(`ConfigManager: Critical error loading ${filename}`, { 
+        error: error.message,
+        code: error.code 
+      });
+      
+      // Return default value as fallback to keep app running, but don't silency swallow
       return defaultValue;
     }
   }
 
-  /**
-   * JSON 파일 저장 (Atomic Write)
-   */
   public async savePayload<T>(filename: string, data: T): Promise<void> {
     const filePath = this.getPath(filename);
     const tempPath = `${filePath}.tmp`;
+
     try {
       await fs.writeFile(tempPath, JSON.stringify(data, null, 2), 'utf-8');
       await fs.rename(tempPath, filePath);
-    } catch (error: any) {
-      logger.error(`ConfigManager: Failed to save ${filename}`, { error: error.message });
+    } catch (error) {
+      const saveError = error as Error;
+      logger.error(`ConfigManager: Failed to save ${filename}`, { error: saveError.message });
+      throw saveError;
     }
   }
 
-  /**
-   * 앱 시작 시 태스크 복구
-   */
   public async recoverTasks(): Promise<SupremeTask[]> {
     const tasks = await this.loadPayload<SupremeTask[]>('tasks.json', []);
-    return tasks.map(t => {
-      // 실행 중이었던 태스크는 'waiting' 또는 'paused'로 강제 변경
-      if (t.status === 'running' || t.status === 'monitoring') {
-        return { ...t, status: 'waiting' };
+
+    return tasks.map((task) => {
+      if (task.status === 'running') {
+        return { ...task, status: 'waiting' };
       }
-      return t;
+
+      if (task.status === 'monitoring') {
+        return { ...task, status: 'monitoring' };
+      }
+
+      return task;
     });
   }
 
   public async loadConfig(): Promise<AppConfig> {
-    return this.loadPayload<AppConfig>('config.json', DEFAULT_CONFIG);
+    const config = await this.loadPayload<Partial<AppConfig>>('config.json', DEFAULT_APP_CONFIG);
+    return {
+      ...DEFAULT_APP_CONFIG,
+      ...config,
+    };
   }
 
   public async saveConfig(config: AppConfig): Promise<void> {

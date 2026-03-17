@@ -20,9 +20,11 @@ export type TaskStatus =
   | 'success'
   | 'failed'
   | 'cancelled'
-  | 'monitoring';
+  | 'monitoring'
+  | 'processing';
 
 export type TaskPriority = 'high' | 'normal' | 'low';
+export type CheckoutMode = 'auto' | 'assist' | 'browser';
 
 /**
  * Discriminated Union 패턴을 통한 모드별 타입 추론 보장
@@ -30,13 +32,14 @@ export type TaskPriority = 'high' | 'normal' | 'low';
 export type MonitorOnlyTask = {
   mode: 'monitor';
   keywords: string[];
-  url?: never;
+  url: string; // Store URL
+  monitorCategory?: string;
 };
 
 export type AtcTask = {
   mode: 'fast' | 'safe';
-  url: string;
-  keywords?: never;
+  url: string; // Product URL or Variant URL
+  keywords?: string[]; 
 };
 
 /**
@@ -45,20 +48,48 @@ export type AtcTask = {
 export type SupremeTaskBase = {
   id: TaskId;
   createdAt: number;
+  queuedAt?: number;
+  startedAt?: number;
+  waitDurationMs?: number;
   priority: TaskPriority;
   status: TaskStatus;
   profileId: ProfileId;
   proxyGroup?: ProxyGroupId;
   quantity: number;
-  size?: string | string[];
+  size?: string;
+  sizePreference?: string[]; // Multiple size candidates
   color?: string;
+  styleCode?: string; // Supreme-specific style/item code
+  paymentMethod: 'card' | 'paypal'; // Supreme payment options
+  checkoutMode: CheckoutMode;
+  creditCard?: {
+    cardNumber: string;
+    expiryMonth: string;
+    expiryYear: string;
+    cvv: string;
+    cardHolder: string;
+  };
+  pollIntervalMs: number;
   maxRetries: number;
+  retryCount: number;
   retryDelayMs: number;
   logs: string[];
   lastError?: string;
   result?: {
     orderNumber?: string;
     total?: number;
+    lastStage?: string;
+    monitorHits?: number;
+    lastHeartbeatAt?: number;
+    variantId?: string; // Added variantId
+    matchedTitle?: string;
+    matchedHandle?: string;
+    matchedUrl?: string;
+    matchedCategory?: string;
+    matchScore?: number;
+    checkoutUrl?: string;
+    processingChecks?: number;
+    verificationUrl?: string;
   };
 };
 

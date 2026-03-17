@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "strict": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "types": ["node"],
+    "rootDir": ".",
+    "outDir": "dist-electron"
+  },
+  "include": [
+    "src/main/**/*.ts",
+    "core/app-data.ts",
+    "core/configManager.ts",
+    "core/proxy/manager.ts",
+    "core/task/backoff.ts",
+    "core/task/pool.ts",
+    "core/task/queue.ts",
+    "core/task/schemas.ts",
+    "core/task/types.ts",
+    "core/task/worker.ts",
+    "core/utils/notification.ts",
+    "utils/**/*.ts"
+  ]
+}

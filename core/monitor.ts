@@ -1,11 +1,6 @@
-/**
- * @file core/monitor.ts
- * @description Shopify 스토어의 제품 변동사항을 모니터링합니다.
- */
-
-import { ShopifyMonitor } from './monitor/shopify-monitor';
 import { z } from 'zod';
 import { logger } from '../utils/logger';
+import { ShopifyMonitor } from './monitor/shopify-monitor';
 
 export const MonitorConfigSchema = z.object({
   id: z.string(),
@@ -17,31 +12,64 @@ export const MonitorConfigSchema = z.object({
 
 export type MonitorConfig = z.infer<typeof MonitorConfigSchema>;
 
+type ActiveMonitor = {
+  monitor: ShopifyMonitor;
+  controller: AbortController;
+  promise: Promise<void>;
+};
+
 export class GlobalMonitor {
-  private monitors: Map<string, ShopifyMonitor> = new Map();
+  private monitors: Map<string, ActiveMonitor> = new Map();
 
   startMonitor(config: MonitorConfig) {
-    try {
-      MonitorConfigSchema.parse(config);
-      
-      const monitor = new ShopifyMonitor(config.url, {
-        // fingerprint 등 기본 옵션 필요
-        fingerprint: { ja3: '...', http2: '...' } 
+    const parsedConfig = MonitorConfigSchema.parse(config);
+    this.stopMonitor(parsedConfig.id);
+
+    const controller = new AbortController();
+    const monitor = new ShopifyMonitor(parsedConfig.url, {});
+    const promise = monitor
+      .poll(parsedConfig.interval, { signal: controller.signal })
+      .catch((error) => {
+        const monitorError = error as Error;
+        if (monitorError.name === 'AbortError') {
+          logger.info(`Monitor aborted: ${parsedConfig.id}`);
+          return;
+        }
+
+        logger.error('Monitor stopped with error', {
+          id: parsedConfig.id,
+          error: monitorError.message,
+        });
+      })
+      .finally(() => {
+        this.monitors.delete(parsedConfig.id);
       });
 
-      this.monitors.set(config.id, monitor);
-      monitor.poll(config.interval);
-      logger.info(`Monitor started for ${config.url}`);
-    } catch (error: any) {
-      logger.error('Failed to start monitor', { error: error.message });
-      throw error;
-    }
+    this.monitors.set(parsedConfig.id, {
+      monitor,
+      controller,
+      promise,
+    });
+
+    logger.info(`Monitor started for ${parsedConfig.url}`);
   }
 
   stopMonitor(id: string) {
-    // ShopifyMonitor에 stop 로직 구현 필요
+    const activeMonitor = this.monitors.get(id);
+    if (!activeMonitor) {
+      return;
+    }
+
+    activeMonitor.controller.abort();
+    activeMonitor.monitor.stop();
     this.monitors.delete(id);
     logger.info(`Monitor stopped: ${id}`);
+  }
+
+  stopAll() {
+    for (const id of this.monitors.keys()) {
+      this.stopMonitor(id);
+    }
   }
 }
 

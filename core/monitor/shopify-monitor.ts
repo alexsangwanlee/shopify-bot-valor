@@ -1,10 +1,16 @@
 import { createHttpClient } from '../../utils/tls-client';
 import { logger } from '../../utils/logger';
 
+type PollOptions = {
+  signal?: AbortSignal;
+  onProducts?: (products: any[]) => void;
+};
+
 export class ShopifyMonitor {
   private url: string;
   private client: any;
   private logger: any;
+  private stopped = false;
 
   constructor(url: string, clientOptions: any) {
     this.url = url;
@@ -12,77 +18,69 @@ export class ShopifyMonitor {
     this.logger = logger.child({ component: 'Monitor', url });
   }
 
-  /**
-   * GraphQL을 이용한 고속 재고 확인 (v2026 Optimized)
-   */
-  async checkViaGraphQL(productHandle: string) {
-    const query = `
-      query getProduct($handle: String!) {
-        product(handle: $handle) {
-          variants(first: 10) {
-            edges {
-              node {
-                id
-                title
-                availableForSale
-                quantityAvailable
-              }
-            }
-          }
-        }
-      }
-    `;
-    
-    try {
-      const resp = await this.client.post(`${this.url}/api/2026-01/graphql.json`, {
-        body: JSON.stringify({ query, variables: { handle: productHandle } }),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Shopify-Storefront-Access-Token': 'REDACTED_OR_USER_CONFIG'
-        }
-      });
-      return resp.data;
-    } catch (err: any) {
-      this.logger.error('GraphQL check failed', { error: err.message });
-      return null;
-    }
+  public stop() {
+    this.stopped = true;
   }
 
-  /**
-   * WebSocket 기반 실시간 동기화 (지원 스레드 한정)
-   */
-  async setupWebSocket() {
-    this.logger.info('WebSocket inventory stream requested (Experimental 2026)');
-    // TODO: Implement WS-based stock shift detection
-  }
-
-  async poll(interval: number = 3000) {
-    this.logger.info(`Starting hybrid monitor (Poll + GraphQL) on ${this.url}`);
-    
-    // products.json polling with etag support
+  public async poll(interval: number = 3000, options: PollOptions = {}) {
+    const { signal, onProducts } = options;
     let lastEtag = '';
-    
-    while (true) {
+
+    this.stopped = false;
+    this.logger.info(`Starting products.json monitor on ${this.url}`);
+
+    while (!this.stopped && !signal?.aborted) {
       try {
         const response = await this.client.get(`${this.url}/products.json?limit=250`, {
-          headers: lastEtag ? { 'If-None-Match': lastEtag } : {}
+          headers: lastEtag ? { 'If-None-Match': lastEtag } : {},
+          followRedirects: true
         });
 
         if (response.status === 200) {
           lastEtag = response.headers['etag'];
-          const products = response.data.products;
-          this.logger.info(`Detected ${products.length} products via JSON`);
+          const payload = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+          const products = payload.products ?? [];
+          this.logger.info(`Fetched ${products.length} products via JSON feed`);
+          onProducts?.(products);
         } else if (response.status === 304) {
-          this.logger.debug('No changes in products (304)');
+          this.logger.debug('No changes detected in products feed (304)');
         }
 
-        // Jittered interval
-        const jitter = Math.random() * 1000;
-        await new Promise(resolve => setTimeout(resolve, interval + jitter));
-      } catch (error: any) {
-        this.logger.error('Monitor error', { error: error.message });
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        await this.wait(interval, signal);
+      } catch (error) {
+        const monitorError = error as Error;
+        if (signal?.aborted || this.stopped) {
+          break;
+        }
+
+        this.logger.error('Monitor poll failed', { error: monitorError.message });
+        await this.wait(Math.min(interval * 2, 10_000), signal);
       }
     }
+  }
+
+  private wait(ms: number, signal?: AbortSignal) {
+    if (signal?.aborted || this.stopped) {
+      return Promise.resolve();
+    }
+
+    return new Promise<void>((resolve) => {
+      const timeout = setTimeout(() => {
+        cleanup();
+        resolve();
+      }, ms);
+
+      const onAbort = () => {
+        clearTimeout(timeout);
+        cleanup();
+        resolve();
+      };
+
+      const cleanup = () => {
+        signal?.removeEventListener('abort', onAbort);
+      };
+
+      signal?.addEventListener('abort', onAbort, { once: true });
+    });
   }
 }

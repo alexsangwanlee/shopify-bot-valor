@@ -16,21 +16,30 @@ export const TopBar: React.FC = () => {
   };
 
   return (
-    <div className="h-10 bg-surface/50 border-b border-white/5 flex items-center justify-between px-4 drag-region z-50">
-      <div className="flex items-center gap-2">
-        <div className="w-2 h-2 rounded-full bg-valor-accent shadow-accent-glow" />
-        <span className="text-[10px] font-bold tracking-widest text-text-muted uppercase">Antigravity AIO</span>
+    <div className="drag-region z-50 flex h-12 items-center justify-between border-b border-white/10 bg-black/20 px-5 backdrop-blur-xl">
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">
+          <div className="h-2 w-2 rounded-full bg-valor-accent shadow-accent-glow" />
+          <span className="text-[9px] font-black uppercase tracking-[0.32em] text-white/45">
+            Antigravity AIO
+          </span>
+        </div>
+        <div className="hidden text-[9px] font-bold uppercase tracking-[0.24em] text-white/20 md:block">
+          Desktop control surface
+        </div>
       </div>
-      <div className="flex no-drag-region">
+
+      <div className="no-drag-region flex items-center gap-2">
+        <div className="data-chip hidden md:inline-flex">local runtime</div>
         <button 
           onClick={handleMinimize}
-          className="p-2 hover:bg-white/5 text-text-muted hover:text-text transition-colors"
+          className="rounded-xl p-2.5 text-text-muted transition-colors hover:bg-white/5 hover:text-text"
         >
           <Minus size={14} />
         </button>
         <button 
           onClick={handleClose}
-          className="p-2 hover:bg-red-500/10 text-text-muted hover:text-red-400 transition-colors"
+          className="rounded-xl p-2.5 text-text-muted transition-colors hover:bg-red-500/10 hover:text-red-400"
         >
           <X size={14} />
         </button>

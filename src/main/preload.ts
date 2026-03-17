@@ -1,42 +1,57 @@
-/**
- * @file src/main/preload.ts
- * @description Supreme 전용 프리로드 스크립트 (IPC 통신 노출)
- */
-
 import { contextBridge, ipcRenderer } from 'electron';
+import type { TaskLogPayload, TaskStatsPayload, TaskStatusPayload } from '../../core/ipc/contracts';
+
+const TASK_STATUS_CHANNEL = 'task-status-changed';
+const TASK_LOG_CHANNEL = 'task-log-append';
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  // Task Operations
   getAllTasks: () => ipcRenderer.invoke('tasks:get-all'),
-  getTaskStats: () => ipcRenderer.invoke('tasks:get-stats'),
-  operateTasks: (action: 'start' | 'pause' | 'cancel' | 'retry', ids: string[]) => 
+  getTaskStats: (): Promise<TaskStatsPayload> => ipcRenderer.invoke('tasks:get-stats'),
+  operateTasks: (action: 'start' | 'pause' | 'cancel' | 'retry', ids: string[]) =>
     ipcRenderer.invoke('tasks:operate', { action, ids }),
-  addSupremeTask: (task: any) => ipcRenderer.invoke('tasks:add', task),
-  updateSupremeTask: (id: string, updates: any) => ipcRenderer.invoke('tasks:update', { id, updates }),
+  addSupremeTask: (task: unknown) => ipcRenderer.invoke('tasks:add', task),
+  updateSupremeTask: (id: string, updates: unknown) =>
+    ipcRenderer.invoke('tasks:update', { id, updates }),
+  clearTaskLogs: (id: string) => ipcRenderer.invoke('tasks:clear-logs', id),
+
   getProfiles: () => ipcRenderer.invoke('profiles:get-all'),
+  saveProfiles: (profiles: unknown[]) => ipcRenderer.invoke('profiles:save-all', profiles),
+  importProfilesCsv: () => ipcRenderer.invoke('profiles:import-csv'),
+  exportProfilesCsv: () => ipcRenderer.invoke('profiles:export-csv'),
+
+  getProxyGroups: () => ipcRenderer.invoke('proxies:get-all'),
+  createProxyGroup: (payload: { name: string; rawInput: string }) =>
+    ipcRenderer.invoke('proxies:create-group', payload),
+  removeProxyGroup: (id: string) => ipcRenderer.invoke('proxies:remove-group', id),
+  validateProxyGroups: () => ipcRenderer.invoke('proxies:validate-all'),
+  testProxySpeeds: (payload?: { groupId?: string; targetUrl?: string }) =>
+    ipcRenderer.invoke('proxies:test-speed', payload),
+
   getConfig: () => ipcRenderer.invoke('config:get'),
-  saveConfig: (config: any) => ipcRenderer.invoke('config:save', config),
+  saveConfig: (config: unknown) => ipcRenderer.invoke('config:save', config),
   testWebhook: (url: string) => ipcRenderer.invoke('webhook:test', url),
-  
-  // Window Controls
+
+  exportAppData: () => ipcRenderer.invoke('app-data:export'),
+  importAppData: () => ipcRenderer.invoke('app-data:import'),
+  wipeAppData: () => ipcRenderer.invoke('app-data:wipe'),
+  openExternal: (url: string) => ipcRenderer.invoke('app:open-external', url),
+
   windowControls: (action: 'minimize' | 'close') => ipcRenderer.send('window-controls', action),
-  
-  // Real-time Listeners
-  onTaskStatusChanged: (callback: (data: any) => void) => {
-    const subscription = (_event: any, data: any) => callback(data);
-    ipcRenderer.on('task-status-changed', subscription);
-    return () => ipcRenderer.removeListener('task-status-changed', subscription);
+
+  onTaskStatusChanged: (callback: (data: TaskStatusPayload) => void) => {
+    const subscription = (_event: unknown, data: TaskStatusPayload) => callback(data);
+    ipcRenderer.on(TASK_STATUS_CHANNEL, subscription);
+    return () => ipcRenderer.removeListener(TASK_STATUS_CHANNEL, subscription);
   },
 
-  onTaskLogAppend: (callback: (data: any) => void) => {
-    const subscription = (_event: any, data: any) => callback(data);
-    ipcRenderer.on('task-log-append', subscription);
-    return () => ipcRenderer.removeListener('task-log-append', subscription);
+  onTaskLogAppend: (callback: (data: TaskLogPayload) => void) => {
+    const subscription = (_event: unknown, data: TaskLogPayload) => callback(data);
+    ipcRenderer.on(TASK_LOG_CHANNEL, subscription);
+    return () => ipcRenderer.removeListener(TASK_LOG_CHANNEL, subscription);
   },
 
-  // Cleanup helper
   removeAllTaskListeners: () => {
-    ipcRenderer.removeAllListeners('task-status-changed');
-    ipcRenderer.removeAllListeners('task-log-append');
-  }
+    ipcRenderer.removeAllListeners(TASK_STATUS_CHANNEL);
+    ipcRenderer.removeAllListeners(TASK_LOG_CHANNEL);
+  },
 });

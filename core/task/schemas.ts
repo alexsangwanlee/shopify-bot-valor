@@ -1,105 +1,118 @@
-/**
- * @file core/task/schemas.ts
- * @description Zod를 통한 Supreme 태스크 런타임 검증 및 팩토리 로직
- */
-
+import { randomUUID } from 'crypto';
 import { z } from 'zod';
-import { 
-  SupremeTask, 
-  TaskId, 
-  ProfileId, 
-  ProxyGroupId, 
+import {
+  SupremeTask,
+  TaskId,
+  ProfileId,
+  ProxyGroupId,
 } from './types';
 
-/**
- * 헬퍼: Branded Type 캐스팅
- */
-const asTaskId = (val: string) => val as TaskId;
-const asProfileId = (val: string) => val as ProfileId;
-const asProxyGroupId = (val: string) => val as ProxyGroupId;
+const asTaskId = (value: string) => value as TaskId;
+const asProfileId = (value: string) => value as ProfileId;
+const asProxyGroupId = (value: string) => value as ProxyGroupId;
 
-/**
- * Supreme 태스크 Zod 스키마 정의 (Strict Mode & Cross-field Validation)
- */
-export const supremeTaskSchema = z.object({
-  // UUID 자동 생성 및 TaskId 브랜딩
-  id: z.string().default(() => require('crypto').randomUUID()).transform(asTaskId),
-  createdAt: z.number().default(() => Date.now()),
-  priority: z.enum(['high', 'normal', 'low']).default('normal'),
-  status: z.enum(['waiting', 'running', 'paused', 'success', 'failed', 'cancelled', 'monitoring']).default('waiting'),
-  
-  profileId: z.string().transform(asProfileId),
-  proxyGroup: z.string().optional().transform((v) => v ? asProxyGroupId(v) : undefined),
-  quantity: z.number().min(1).default(1),
-  size: z.union([z.string(), z.string().array()]).optional(),
-  color: z.string().optional(),
-  
-  mode: z.enum(['fast', 'safe', 'monitor']),
-  url: z.string().url().optional(),
-  keywords: z.string().array().optional(),
-  
-  maxRetries: z.number().min(0).default(5),
-  retryDelayMs: z.number().min(0).default(3000),
-  
-  logs: z.string().array().max(80).default([]),
-  lastError: z.string().optional(),
-  
-  result: z.object({
-    orderNumber: z.string().optional(),
-    total: z.number().optional(),
-  }).optional(),
-}).superRefine((val, ctx) => {
-  // Discriminated Union 논리 검증: 모드에 따른 필수 필드 체크
-  if (val.mode === 'monitor' && (!val.keywords || val.keywords.length === 0)) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Monitor mode requires at least one keyword",
-      path: ['keywords']
-    });
-  }
-  
-  if ((val.mode === 'fast' || val.mode === 'safe') && !val.url) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "ATC mode (fast/safe) requires a valid Supreme product URL",
-      path: ['url']
-    });
-  }
-  
-  // URL과 Keywords 상호 배타성 검증 (타입 레벨에서는 never로 처리됨)
-  if (val.mode === 'monitor' && val.url) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Monitor mode cannot have a URL",
-      path: ['url']
-    });
-  }
-});
+export const supremeTaskSchema = z
+  .object({
+    id: z.string().default(() => randomUUID()).transform(asTaskId),
+    createdAt: z.number().default(() => Date.now()),
+    queuedAt: z.number().optional(),
+    startedAt: z.number().optional(),
+    waitDurationMs: z.number().min(0).optional(),
+    priority: z.enum(['high', 'normal', 'low']).default('normal'),
+    status: z
+      .enum(['waiting', 'running', 'paused', 'success', 'failed', 'cancelled', 'monitoring', 'processing'])
+      .default('waiting'),
+    profileId: z.string().transform(asProfileId),
+    proxyGroup: z
+      .string()
+      .optional()
+      .transform((value) => (value ? asProxyGroupId(value) : undefined)),
+    quantity: z.number().min(1).default(1),
+    size: z.string().optional(),
+    sizePreference: z.array(z.string()).optional(),
+    color: z.string().optional(),
+    styleCode: z.string().optional(),
+    paymentMethod: z.enum(['card', 'paypal']).default('card'),
+    checkoutMode: z.enum(['auto', 'assist', 'browser']).default('auto'),
+    creditCard: z.object({
+      cardNumber: z.string().min(13).max(19),
+      expiryMonth: z.string().length(2),
+      expiryYear: z.string().length(4).or(z.string().length(2)),
+      cvv: z.string().min(3).max(4),
+      cardHolder: z.string().min(1),
+    }).optional(),
+    pollIntervalMs: z.number().min(1000).default(3_000),
+    mode: z.enum(['fast', 'safe', 'monitor']),
+    url: z.string().url(), // Product URL for ATC, Store URL for Monitor
+    monitorCategory: z.string().optional(),
+    keywords: z.array(z.string()).optional(),
+    maxRetries: z.number().min(0).default(5),
+    retryCount: z.number().min(0).default(0),
+    retryDelayMs: z.number().min(0).default(3_000),
+    logs: z.array(z.string()).max(80).default([]),
+    lastError: z.string().optional(),
+    result: z
+      .object({
+        orderNumber: z.string().optional(),
+        total: z.number().optional(),
+        lastStage: z.string().optional(),
+        monitorHits: z.number().optional(),
+        lastHeartbeatAt: z.number().optional(),
+        variantId: z.string().optional(),
+        matchedTitle: z.string().optional(),
+        matchedHandle: z.string().optional(),
+        matchedUrl: z.string().url().optional(),
+        matchedCategory: z.string().optional(),
+        matchScore: z.number().optional(),
+        checkoutUrl: z.string().url().optional(),
+        processingChecks: z.number().min(0).optional(),
+        verificationUrl: z.string().url().optional(),
+      })
+      .optional(),
+  })
+  .superRefine((value, context) => {
+    // Mode-specific URL and Keyword validation
+    if (value.mode === 'monitor') {
+      if (!value.url || !value.url.startsWith('http')) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Monitor mode requires a valid store root URL',
+          path: ['url'],
+        });
+      }
+      if (!value.keywords || value.keywords.length === 0) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Monitor mode requires at least one keyword',
+          path: ['keywords'],
+        });
+      }
+    } else {
+      // fast/safe modes
+      if (!value.url || !value.url.includes('/products/') && !value.url.includes('/variants/')) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Fast/Safe mode requires a valid product or variant URL',
+          path: ['url'],
+        });
+      }
+    }
+  });
 
-/**
- * 타입 세이프 팩토리 함수
- */
 export function createSupremeTask(input: z.input<typeof supremeTaskSchema>): SupremeTask {
   return supremeTaskSchema.parse(input) as SupremeTask;
 }
 
-/**
- * 타입 가드 함수
- */
 export function isValidSupremeTask(task: unknown): task is SupremeTask {
-  const result = supremeTaskSchema.safeParse(task);
-  return result.success;
+  return supremeTaskSchema.safeParse(task).success;
 }
 
-/**
- * 기본값 기반 빈 태스크 팩토리
- */
 export function createEmptyTask(mode: 'fast' | 'safe' | 'monitor'): SupremeTask {
   return createSupremeTask({
     mode,
     profileId: 'default' as ProfileId,
-    // 모드에 따라 최소 필수값만 채움
-    url: mode !== 'monitor' ? 'https://www.supremenewyork.com/shop/all' : undefined,
-    keywords: mode === 'monitor' ? ['supreme'] : undefined,
-  });
+    url: mode === 'monitor' ? '' : 'https://www.supremenewyork.com/shop/all',
+    keywords: mode === 'monitor' ? ['box logo'] : [],
+    checkoutMode: 'auto',
+  } as any);
 }

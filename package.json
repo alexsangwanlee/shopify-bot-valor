@@ -2,13 +2,18 @@
   "name": "antigravity-shopify-bot",
   "version": "1.0.0",
   "description": "High-performance Shopify bot with Electron, React, and advanced anti-bot bypass.",
-  "main": "dist/main/index.js",
+  "main": "dist-electron/src/main/index.js",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && electron-builder",
-    "start-electron": "electron .",
+    "build:renderer": "vite build",
+    "build:main": "tsc -p tsconfig.electron.json",
+    "typecheck:renderer": "tsc --noEmit",
+    "typecheck:main": "tsc -p tsconfig.electron.json --noEmit",
+    "typecheck": "npm run typecheck:renderer && npm run typecheck:main",
+    "build": "npm run build:main && npm run build:renderer && electron-builder",
+    "start-electron": "npm run build:main && npm run build:renderer && electron .",
     "test:tls": "ts-node utils/tls-client.ts",
-    "test:worker": "ts-node core/task/runner.ts"
+    "test:worker": "npm run typecheck:main"
   },
   "keywords": [
     "shopify",
@@ -20,12 +25,16 @@
   "author": "Antigravity",
   "license": "MIT",
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.1",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "autoprefixer": "^10.4.27",
     "electron": "^41.0.2",
     "electron-builder": "^26.8.1",
     "postcss": "^8.5.8",
-    "tailwindcss": "^4.2.1",
+    "tailwindcss": "^3.4.17",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
     "vite": "^8.0.0"
@@ -52,6 +61,7 @@
     "sona-react": "^0.1.1",
     "tailwind-merge": "^3.5.0",
     "winston": "^3.19.0",
+    "zod": "^4.3.6",
     "zustand": "^5.0.12"
   }
 }

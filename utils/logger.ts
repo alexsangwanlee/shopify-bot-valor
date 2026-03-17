@@ -1,8 +1,5 @@
-/**
- * @file utils/logger.ts
- * @description 애플리케이션 로그 기록 시스템 (Winston 기반)
- */
-
+import { app } from 'electron';
+import fs from 'fs';
 import winston from 'winston';
 import path from 'path';
 
@@ -18,7 +15,18 @@ const customFormat = printf(({ level, message, timestamp, taskId, ...metadata })
 });
 
 export const createLogger = (taskId?: string) => {
-  const logDir = path.join(process.cwd(), 'logs');
+  // Use appData for logs to ensure write permissions in packaged apps
+  let logDir: string;
+  try {
+    logDir = app ? path.join(app.getPath('userData'), 'logs') : path.join(process.cwd(), 'logs');
+  } catch {
+    logDir = path.join(process.cwd(), 'logs');
+  }
+  
+  if (!fs.existsSync(logDir)) {
+    fs.mkdirSync(logDir, { recursive: true });
+  }
+
   const filename = taskId ? `task-${taskId}.log` : 'combined.log';
 
   return winston.createLogger({

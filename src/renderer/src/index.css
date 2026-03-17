@@ -3,26 +3,106 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --app-bg: #060816;
+    --app-bg-soft: #0c1121;
+    --panel-bg: rgba(10, 16, 28, 0.7);
+    --panel-border: rgba(255, 255, 255, 0.08);
+    --mesh-cyan: rgba(0, 255, 208, 0.16);
+    --mesh-blue: rgba(64, 143, 255, 0.2);
+    --mesh-amber: rgba(255, 190, 92, 0.12);
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  html {
+    background:
+      radial-gradient(circle at top left, var(--mesh-cyan), transparent 24%),
+      radial-gradient(circle at 82% 16%, var(--mesh-blue), transparent 26%),
+      radial-gradient(circle at 50% 100%, var(--mesh-amber), transparent 18%),
+      linear-gradient(160deg, var(--app-bg) 0%, #06070d 38%, var(--app-bg-soft) 100%);
+  }
+
   body {
-    @apply bg-background text-text selection:bg-primary/30 antialiased;
+    margin: 0;
+    font-family: "Segoe UI Variable Text", "SF Pro Display", "Segoe UI", sans-serif;
+    background:
+      radial-gradient(circle at top left, var(--mesh-cyan), transparent 24%),
+      radial-gradient(circle at 82% 16%, var(--mesh-blue), transparent 26%),
+      radial-gradient(circle at 50% 100%, var(--mesh-amber), transparent 18%),
+      linear-gradient(160deg, var(--app-bg) 0%, #06070d 38%, var(--app-bg-soft) 100%);
+    @apply text-text selection:bg-primary/30 antialiased;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 72px 72px;
+    mask-image: radial-gradient(circle at center, black 45%, transparent 88%);
+    opacity: 0.18;
   }
 }
 
 @layer components {
   .glass-card {
-    @apply bg-surface/50 backdrop-blur-md border border-white/10 rounded-xl shadow-glass;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
+      var(--panel-bg);
+    @apply rounded-[1.5rem] border backdrop-blur-xl shadow-glass;
+    border-color: var(--panel-border);
   }
-  
+
+  .glass-card-intense {
+    background:
+      linear-gradient(145deg, rgba(0, 255, 208, 0.08), rgba(255, 255, 255, 0.02) 28%, rgba(64, 143, 255, 0.06));
+    @apply rounded-[1.75rem] border border-white/10 backdrop-blur-2xl shadow-glass;
+  }
+
+  .section-kicker {
+    @apply text-[10px] font-black uppercase tracking-[0.34em] text-white/35;
+  }
+
+  .panel-title {
+    font-family: "Bahnschrift", "Segoe UI Variable Display", "Segoe UI", sans-serif;
+    @apply text-xl font-black uppercase italic tracking-[0.16em] text-white;
+  }
+
+  .metric-value {
+    font-family: "Bahnschrift", "Segoe UI Variable Display", "Segoe UI", sans-serif;
+    @apply text-4xl font-black italic tracking-tight text-white;
+  }
+
   .nav-item {
     @apply flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 hover:bg-white/5;
   }
-  
+
   .nav-item.active {
     @apply bg-primary/10 text-primary border border-primary/20;
   }
 
   .btn-primary {
     @apply bg-primary hover:bg-secondary text-white font-medium px-6 py-2 rounded-lg transition-all shadow-lg shadow-primary/20;
+  }
+
+  .data-chip {
+    @apply rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[9px] font-black uppercase tracking-[0.24em] text-white/55;
+  }
+
+  .drag-region {
+    -webkit-app-region: drag;
+  }
+
+  .no-drag-region {
+    -webkit-app-region: no-drag;
   }
 }
 

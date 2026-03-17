@@ -1,27 +1,32 @@
-/**
- * @file src/renderer/src/components/StatusBar.tsx
- * @description 하단 상태 표시줄
- */
-
 import React from 'react';
 import { Activity, ShieldCheck, Wifi } from 'lucide-react';
+import { useTaskStore } from '../stores/useTaskStore';
 
 export const StatusBar: React.FC = () => {
+  const stats = useTaskStore((state) => state.stats);
+  const activeCount = stats.running + stats.processing;
+
   return (
-    <div className="h-8 bg-surface/80 border-t border-white/5 flex items-center justify-between px-6 text-[10px] font-medium text-text-muted z-50">
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-1.5">
+    <div className="z-50 flex h-10 items-center justify-between border-t border-white/10 bg-black/25 px-6 text-[10px] font-bold uppercase tracking-[0.18em] text-text-muted backdrop-blur-xl">
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">
           <Activity size={12} className="text-valor-accent" />
-          <span>TASKS RUNNING: <span className="text-text">12</span></span>
+          <span>
+            Engines: <span className="text-text">{activeCount}</span>
+          </span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <ShieldCheck size={12} className="text-primary" />
-          <span>PROXIES: <span className="text-text">READY</span></span>
+        <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">
+          <ShieldCheck size={12} className="text-amber-300" />
+          <span>
+            Queue: <span className="text-text">{stats.waiting}</span>
+          </span>
         </div>
       </div>
-      <div className="flex items-center gap-4">
-        <span>V1.0.0</span>
-        <div className="flex items-center gap-1.5 text-valor-accent">
+      <div className="flex items-center gap-3">
+        <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">
+          {stats.total} total
+        </div>
+        <div className="flex items-center gap-1.5 rounded-full border border-valor-accent/20 bg-valor-accent/10 px-3 py-1.5 text-valor-accent">
           <Wifi size={12} />
           <span>CONNECTED</span>
         </div>
